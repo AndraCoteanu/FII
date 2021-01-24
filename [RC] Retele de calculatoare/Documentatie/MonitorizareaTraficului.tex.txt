@@ -1,0 +1,168 @@
+\documentclass[12pt]{article}
+\usepackage[margin=1in]{geometry} 
+\usepackage{amsmath,tabto,amsthm,amssymb,amsfonts,listings}
+\usepackage{algorithmic}
+\usepackage[english,romanian]{babel}
+\usepackage{mathrsfs}
+\usepackage{hyperref}
+\usepackage{comment}
+\usepackage{graphics}
+\usepackage{graphicx}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{mathrsfs}
+\usepackage{stackengine}
+\usepackage{xcolor}
+
+\title{Raport Tema 2 - Monitorizarea Traficului}
+\author{Coteanu Andra Maria\\ \small grupa 2A4}
+\date{\small decembrie 2020}
+\vspace{10cm}
+
+\begin{document}
+\maketitle
+
+\vspace{4cm}
+\tableofcontents
+\vspace{4cm}
+
+\section{Introducere}
+
+\hspace{1cm} În această fișă de raport tehnic voi prezenta toate informațiile necesare pentru implementarea proiectului Monitorizarea Traficului (A) pe care am ales să îl fac în limbajul C/C++. Aceasta este o aplicație de tip client-server, ce are rolul de a prelucra datele reale și/sau obținute din mediul online și de la șoferi pentru a-i ajuta pe aceștia să evite evenimente neplăcute în trafic, dar și pentru menținerea siguranței șoferilor, pasagerilor, pietonilor și a oricărui alt participant la trafic.
+
+\hspace{0.3cm} Sistemul trebuie să fie capabil să gestioneze traficul și să ofere informații tuturor șoferilor conectați la aplicație. Informațiile ,,real time" despre trafic vor fi furnizate de șoferi (aceștia pot raporta orice eveniment sau incident la care au fost martori în trafic). 
+
+\hspace{0.3cm} Alte funcționalități ale aplicației:
+
+\hspace{1cm} - clientul va fi obligat să se autentifice fie cu un cont (formatul: utilizator paroală) existent fie să își creeze unul nou de fiecare dată când dorește să acceseze aplicația;
+
+\hspace{1cm} - aplicația va înregistra automat viteza cu care circulă autovehiculul și locația acestuia (și va anunța șoferul dacă a depășit limita de viteză pe porțiunea de drum pe care se află) (datele vor fi actualizate cu frecvența de 1 minut);
+
+\hspace{1cm} - sistemul va notifica șoferii de evenimente în trafic precum blocaje, accidente, drumuri închise, drumuri avariate sau drumuri în reparații și despre restricțiile de viteză aferente;
+
+\hspace{1cm} - sistemul poate oferi informații despre vreme, sport sau prețurile pentru combustibil la cererea utilizatorului; în plus, stațiile peco afișate vor fi cele mai aproape 3 stații de locația clientului la momentul solicitării (se va încerca pe cât posibil ca cele 3 benzinării să fie diferite firme pentru a oferi clientului mai multe opțiuni de intervale de prețuri pentru combustibil).
+
+\section{Tehnologiile utilizate}
+
+\hspace{1cm} Sistemul poate fi considerat ca fiind format din 2 părți:
+
+\hspace{0.3cm} 1. Aplicația în sine și funcționalitățile ei
+
+\hspace{0.85cm} Acest lucru poate fi realizat prin implementarea unui server care să asigure legătura între baza de date, graf-uri și alte forme de a stoca, sorta și face rost de informațiile necesare participanților la trafic, dar și prin implementarea unui client care va comunica cu serverul.
+
+\hspace{0.3cm} 2. Utilizatorii
+
+\hspace{0.85cm} Aceștia, când se vor conecta la aplicație, se vor conecta de fapt la serverul care asigură integritatea structurală sistemului. Astfel utilizatorii pot trimite mesaje spre server (prin intermediul clientului), unde informația va fi procesată și utilizatorul va primi un răspuns conform solicitării făcute. Dacă un utilizator a raportat un incident, atunci serverul va produce un răspuns care îi vizează pe toți utilizatorii conectați atunci.
+
+\vspace{0.4cm}
+
+\hspace{0.3cm} Pentru a realiza aceste lucruri este necesară o conexiune client-server, deci voi alege să implementez modelul TCP concurent care să asigure acest lucru. Serverul TCP va crea câte un fir de execuție pentru fiecare client așa încât să existe posibilitatea servirii mai multor utilizatori simultan. Se vor lua datele de la client, se vor procesa și se va trimite răspunsul spre acesta. Clientul va avea stabilit un port de conexiune de unde se vor prelua datele de către server. În client se va produce (decodifica mesajul de la server) răspunsul final primit de utilizator.
+
+\hspace{0.3cm} Serverul va comunica și cu o bază de date și două grafuri pentru a reține utilizatorii, dacă s-au abonat la știri, harta orașului și locațiile stațiilor peco.
+
+\hspace{0.3cm} Clientul va avea 3 thread-uri ce vor rula în paralel unul față de celălalt:
+
+\hspace{0.5cm} - threadul aplicației: va asigura rularea corectă a întregului program;
+
+\hspace{0.5cm} - threadul vitezei: va afișa la un interval de aproximativ 1 minut viteza cu care circulă utilizatorul, locația sa și atentionare legată de limita de viteza;
+
+\hspace{0.5cm} - threadul incidentelor: va aștepta mereu un mesaj de la server, când îl va primi îl va afișa instant pe ecranele utilizatorilor conectați.
+
+\section{Arhitectura aplicației}
+
+\hspace{1.0cm} Informațiile cum ar fi utilizatorii deja existenți și dacă s-au abonat sau nu la știri vor fi memorate într-o bază de date sql. 
+
+\hspace{0.3cm} Pentru memorarea străzilor și a limitei legale de viteză pe acele porțiuni de drum voi implementa un graf neorientat cu cost pe muchie (presupunând că nu există drumuri cu sens unic) conform hărții \small{[6]} de mai jos:
+
+\begin{figure}[htp]
+  \centering \includegraphics[width=14cm, height=8cm]{graf.jpg}
+\end{figure}
+
+\hspace{0.3cm} Locațiile stațiilor peco, precum și numărul acestora de identificare vor fi memorate într-un graf neorientat cu cost pe muchie. Fiecare id va corespunde unei firme diferite de benzinărie. 
+
+\hspace{0.3cm} Știrile meteo sau despre sport vor fi furnizate utilizatorilor cu ajutorul unor funcții în server care va genera informațiile prin mimica unei inteligențe artificiale.
+
+\hspace{0.3cm} Cele două funcții \textit{sign\_in()} și \textit{login()} vor apărea împreună cu funcția \textit{quit()} în meniul principal. Clientul va fi nevoit să se autentifice fie cu un cont existent, fie cu un cont nou creat pentru a putea accesa toate funcționalitățile aplicației.
+
+\hspace{0.3cm} Un exemplu de instanță sql este următoarea, unde am verificat dacă userul și parola introduse de client există. Dacă există, atunci se va putea loga, iar serverul va mai accesa încă odată baza de date pentru a verifica dacă utilizatorul proaspăt logat este sau nu abonat la știri.
+
+\begin{figure}[htp]
+  \centering \includegraphics[width=15cm, height=7cm]{login1.png}
+\end{figure}
+
+\hspace{0.3cm} Instanțieri similare au fost folosite și pentru funcția de sign in: se verifică dacă utilizatorul există în baza de date (dacă da, se solicită alt nume din partea clientului; daca nu), se inserează utlizatorul în baza de date fără abonament la știri. În cele din urmă acesta este întrebat dacă dorește să se aboneze și baza de date va fi updatată. 
+
+\hspace{0.3cm} În diagrama de mai jos este reprezentat sumar cum comunică serverul și clientul, de ce se ocupă fiecare în parte și informațiile stocate la care are acces doar serverul.
+
+\begin{figure}[htp]
+  \vspace{0cm} \includegraphics[width=16.5cm, height=7.5cm]{trafic.png}
+\end{figure}
+
+\vspace{1cm}
+\section{Detalii de implementare}
+
+\hspace{1cm}Pentru ca aplicația să funcționeze în modul ideal trebuie să se îndeplinească simultan următoarele două condiții:
+
+\vspace{0.3cm}
+\hspace{1cm} 1. serverul TCP să poată primi și trimite mesaje la și de la client [4,5]
+
+\vspace{0.2cm}
+\hspace{1cm} 2. funcțiile pe care le voi implementa în program trebuie să respecte diagrama de la capitolul 3.
+
+\hspace{0.5cm}Vor fi 2 tipuri de utilizatori: cei abonați și cei neabonați la știri. Programul descris va putea fi utilizat conform urmatorului scenariu:
+
+\begin{figure}[htp]
+  \centering \includegraphics[width=16.5cm, height=11cm]{use_cases.png}
+\end{figure}
+
+\hspace{1cm}Funcția \textit{login} are rolul de a autentifica utilizatorii ce au introdus un user existent în baza de date. Dacă userul nu există se va afișa un mesaj care să sugereze să se folosească funcția \textit{login} cu alt user, funcția \textit{sign\_in} cu userul încercat inițial sau funcția \textit{quit} care închide aplicația.
+
+\hspace{1cm}Funcția \textit{sign\_in}, similar cu funcția de \textit{login}, are rolul de a înregistra un nou utilizator în baza de date. În plus acesta este întrebat dacă vrea să se aboneze la știri.
+
+\hspace{1cm}Odată ce clientul este autentificat în aplicație acesta va avea un meniu mai larg de posibilități:
+
+\hspace{1.5cm} - funcția \textit{raportarea$\_$incidentelor} va primi un mesaj de la client și va avertiza toți ceilalți utilizatori despre pericolul semnalizat;
+
+\hspace{1.5cm} - funcțiile \textit{meteo}, \textit{sport} și \textit{peco} vor afișa detalii despre vreme, știri din sport sau prețul combustibilului și locația celor mai apropiate 3 stații peco de pe harta; 
+
+\hspace{1.5cm} - funcția \textit{logout} va deconecta utilizatorul și-l va întoarce la meniul principal (\textit{sign\_in, login, quit});
+
+\hspace{1.5cm} - funcția \textit{quit} va închide aplicația.
+
+\hspace{1cm}Pe lângă aceste funcționalități, odată autentificat, funcția \textit{speed} va oferi șoferului la intervale de aproximativ 1 minut detalii despre viteza cu care circula și dacă a depășit limita legală pe porțiunea de drum pe care se află.
+
+\section{Concluzii}
+
+\hspace{1cm}Tehnologia aleasă ar fi putut fi îmbunătățită din punctul de vedere al vitezei folosind un server UDP, dar considerând toate caracteristicile celor două tipuri de servere, modelul TCP este mult mai stabil și adecvat situației în cauză.
+
+\hspace{0.3cm} Soluția prezentată ar putea fi îmbunătățită prin stocarea grafului (ce reprezintă rețeaua stradală) sub forma unei liste, iar limita legală de viteza să fie stocată într-o bază de date care să țină evidența străzilor (nume, coordonate, limita de viteza) și a stațiilor peco de pe acele străzi.
+
+\hspace{0.3cm} De asemenea știrile meteo și cele din sport ar fi putut fi luate direct de pe site-uri de specialitate cu ajutorul unei crawler web.
+
+\hspace{0.3cm} GUI-ul pentru client putea fi implementat folosind software-ul Qt în loc de a crea impresia de butoane. 
+
+\section{Bibliografie}
+
+[1] Alboaie, L. (2020a). \textit{Client (TCP concurent).} [online] Uaic.ro. Available at: \url{https://profs.info.uaic.ro/~computernetworks/files/NetEx/S12/ServerConcThread/cliTcpNr.c}
+
+\vspace{0.4cm}
+
+\hspace{-0.6cm}[2] Alboaie, L. (2020b). \textit{Server TCP concurent.} [online] Uaic.ro. Available at: \url{https://profs.info.uaic.ro/~computernetworks/files/NetEx/S12/ServerConcThread/servTcpConcTh2.c}
+
+\vspace{0.4cm}
+
+\hspace{-0.6cm}[3] Alboaie, L. and Panu, A. (2015). \textit{Retele de calculatoare | Proiecte propuse.} [online] Uaic.ro. Available at: \url{https://profs.info.uaic.ro/~computernetworks/ProiecteNet2020.php}
+
+\vspace{0.4cm}
+
+\hspace{-0.6cm}[4] Alboaie, L. and Panu, A. (2020). \textit{Course\&Laboratory - Computer Networks 2020-2021.} [online] Uaic.ro. Available at: \url{https://profs.info.uaic.ro/ ~computernetworks/cursullaboratorul.php}
+
+\vspace{0.4cm}
+
+\hspace{-0.6cm}[5] Hochstadt, A. (2020). \textit{TCP vs UDP: Understanding the Difference.} [online] vpnMentor. Available at: \url{https://www.vpnmentor.com/blog/tcp-vs-udp/}
+
+\vspace{0.4cm}
+
+\hspace{-0.6cm}[6] Google maps (2020). \textit{Iași.} [online] Iași. Available at: \url{https://www.google.com/maps/place/Ia\%C8\%99i/}
+
+\end{document}

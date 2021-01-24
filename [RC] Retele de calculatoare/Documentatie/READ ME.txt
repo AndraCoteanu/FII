@@ -1,0 +1,10 @@
+READ ME - MONITORIZAREA TRAFICULUI
+
+compilare server: gcc server9.c -o server9.exe -lsqlite3 -pthread
+executare server: <path>/server9.exe
+compilare client: gcc client9.c -o client9.exe -lgraph -pthread
+executare client: <path>/client9.exe <port>
+
+port = 4529
+
+(c) Coteanu Andra Maria, grupa 2A4
